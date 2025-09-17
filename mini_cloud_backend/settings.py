@@ -11,10 +11,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -24,9 +26,6 @@ SECRET_KEY = 'django-insecure-xlx+%i)#vsy*uboma&l!-69hi8&m#_3*9h^j^r&k-9r%*^#!gf
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-
-
 
 # Application definition
 
@@ -75,17 +74,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mini_cloud_backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", 'localhost')
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", '5432')
 
+DATABASES = {
+    "default": {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': f'{POSTGRES_DB}',
+        'USER': f'{POSTGRES_USER}',
+        'PASSWORD': f'{POSTGRES_PASSWORD}',
+        'HOST': f'{POSTGRES_HOST}',
+        'PORT': f'{POSTGRES_PORT}'
+    }
+
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -105,7 +113,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -116,7 +123,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Вхід - Mini Cloud{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="text-center mb-4">
+            <h2><i class="fas fa-sign-in-alt"></i> Вхід</h2>
+            <p class="text-muted">Увійдіть до свого акаунту</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Ім'я користувача</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Пароль</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Увійти
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-3">
+            <p>Немає акаунту? <a href="/api/auth/register/">Зареєструватися</a></p>
+        </div>
+
+        <div id="message" class="mt-3"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    const messageDiv = document.getElementById('message');
+    
+    try {
+        const response = await fetch('/api/auth/api/login/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            messageDiv.innerHTML = '<div class="alert alert-success">Успішний вхід! Перенаправлення...</div>';
+            setAuthTokens(result.access, result.refresh);
+            
+            // Також входимо в Django сесію
+            try {
+                await fetch('/api/auth/api/session-login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+            } catch (error) {
+                console.log('Помилка входу в сесію:', error);
+            }
+            
+            setTimeout(() => {
+                window.location.href = '/api/auth/dashboard/';
+            }, 2000);
+        } else {
+            let errorMessage = 'Невірні облікові дані';
+            if (result.detail) {
+                errorMessage = result.detail;
+            }
+            messageDiv.innerHTML = `<div class="alert alert-danger">${errorMessage}</div>`;
+        }
+    } catch (error) {
+        messageDiv.innerHTML = '<div class="alert alert-danger">Помилка з\'єднання з сервером</div>';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Дашборд - Mini Cloud{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-cloud"></i> Мої документи</h1>
+            <p class="text-muted">Керуйте своїми файлами в хмарі</p>
+        </div>
+    </div>
+
+    <!-- Форма завантаження файлів -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-upload"></i> Завантажити файл</h5>
+                </div>
+                <div class="card-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h5>Перетягніть файл сюди або натисніть для вибору</h5>
+                            <input type="file" class="form-control" id="fileInput" name="file" style="display: none;" required>
+                            <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" required>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Завантажити
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список документів -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-folder"></i> Мої файли</h5>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadDocuments()">
+                        <i class="fas fa-sync-alt"></i> Оновити
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="documentsList">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Завантаження...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Завантаження документів при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    loadDocuments();
+    setupFileUpload();
+});
+
+// Налаштування завантаження файлів
+function setupFileUpload() {
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    fileUploadArea.addEventListener('click', () => fileInput.click());
+    
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+    
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('dragover');
+    });
+    
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            updateFileDisplay();
+        }
+    });
+    
+    fileInput.addEventListener('change', updateFileDisplay);
+}
+
+function updateFileDisplay() {
+    const fileInput = document.getElementById('fileInput');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    
+    if (fileInput.files.length > 0) {
+        const fileName = fileInput.files[0].name;
+        fileUploadArea.innerHTML = `
+            <i class="fas fa-file fa-3x text-primary mb-3"></i>
+            <h5>${fileName}</h5>
+            <input type="file" class="form-control" id="fileInput" name="file" style="display: none;" required>
+            <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" value="${fileName}" required>
+        `;
+        setupFileUpload(); // Перевстановити обробники
+    }
+}
+
+// Завантаження списку документів
+async function loadDocuments() {
+    const documentsList = document.getElementById('documentsList');
+    
+    try {
+        const response = await apiRequest('/api/documents/');
+        const documents = await response.json();
+        
+        if (documents.length === 0) {
+            documentsList.innerHTML = '<div class="text-center text-muted"><i class="fas fa-folder-open fa-3x mb-3"></i><p>У вас поки немає файлів</p></div>';
+            return;
+        }
+        
+        let html = '<div class="row">';
+        documents.forEach(doc => {
+            const uploadDate = new Date(doc.uploaded_at).toLocaleDateString('uk-UA');
+            html += `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-file"></i> ${doc.title}
+                            </h6>
+                            <p class="card-text text-muted small">
+                                Завантажено: ${uploadDate}
+                            </p>
+                        </div>
+                        <div class="card-footer">
+                            <a href="${doc.file}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                <i class="fas fa-download"></i> Завантажити
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm ms-2" onclick="deleteDocument(${doc.id})">
+                                <i class="fas fa-trash"></i> Видалити
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        documentsList.innerHTML = html;
+        
+    } catch (error) {
+        documentsList.innerHTML = '<div class="alert alert-danger">Помилка завантаження документів</div>';
+    }
+}
+
+// Завантаження файлу
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const messageDiv = document.getElementById('message');
+    
+    try {
+        const response = await apiRequest('/api/documents/', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileUploadArea').innerHTML = `
+                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                <h5>Перетягніть файл сюди або натисніть для вибору</h5>
+                <input type="file" class="form-control" id="fileInput" name="file" style="display: none;" required>
+                <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" required>
+            `;
+            setupFileUpload();
+            loadDocuments();
+        } else {
+            const error = await response.json();
+            alert('Помилка завантаження: ' + (error.detail || 'Невідома помилка'));
+        }
+    } catch (error) {
+        alert('Помилка з\'єднання з сервером');
+    }
+});
+
+// Видалення документа
+async function deleteDocument(docId) {
+    if (!confirm('Ви впевнені, що хочете видалити цей файл?')) {
+        return;
+    }
+    
+    try {
+        const response = await apiRequest(`/api/documents/${docId}/`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadDocuments();
+        } else {
+            alert('Помилка видалення файлу');
+        }
+    } catch (error) {
+        alert('Помилка з\'єднання з сервером');
+    }
+}
+</script>
+{% endblock %}

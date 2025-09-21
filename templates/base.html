@@ -102,11 +102,18 @@
         // Функція для API запитів з авторизацією
         async function apiRequest(url, options = {}) {
             const token = getAuthToken();
+            
+            // Визначаємо чи це FormData (завантаження файлу)
+            const isFormData = options.body instanceof FormData;
+            
             const defaultOptions = {
                 headers: {
-                    'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                }
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
+                    // Не встановлюємо Content-Type для FormData - браузер зробить це автоматично
+                    ...(isFormData ? {} : { 'Content-Type': 'application/json' })
+                },
+                credentials: 'same-origin'  // Включаємо cookies для Django сесій
             };
             
             const response = await fetch(url, { ...defaultOptions, ...options });
@@ -122,6 +129,22 @@
             }
             
             return response;
+        }
+
+        // Функція для отримання CSRF токена
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
 
         // Оновлення токена

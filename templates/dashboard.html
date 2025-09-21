@@ -23,7 +23,7 @@
                         <div class="file-upload-area" id="fileUploadArea">
                             <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                             <h5>Перетягніть файл сюди або натисніть для вибору</h5>
-                            <input type="file" class="form-control" id="fileInput" name="file" style="display: none;" required>
+                            <input type="file" class="form-control" id="fileInput" name="file" style="display: none;">
                             <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" required>
                         </div>
                         <div class="text-center mt-3">
@@ -89,7 +89,10 @@ function setupFileUpload() {
         fileUploadArea.classList.remove('dragover');
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            fileInput.files = files;
+            // Створюємо DataTransfer для правильної передачі файлу
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(files[0]);
+            fileInput.files = dataTransfer.files;
             updateFileDisplay();
         }
     });
@@ -103,12 +106,21 @@ function updateFileDisplay() {
     
     if (fileInput.files.length > 0) {
         const fileName = fileInput.files[0].name;
+        const file = fileInput.files[0]; // Зберігаємо файл
+        
         fileUploadArea.innerHTML = `
             <i class="fas fa-file fa-3x text-primary mb-3"></i>
             <h5>${fileName}</h5>
-            <input type="file" class="form-control" id="fileInput" name="file" style="display: none;" required>
+            <input type="file" class="form-control" id="fileInput" name="file" style="display: none;">
             <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" value="${fileName}" required>
         `;
+        
+        // Відновлюємо файл в новому input
+        const newFileInput = document.getElementById('fileInput');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        newFileInput.files = dataTransfer.files;
+        
         setupFileUpload(); // Перевстановити обробники
     }
 }
@@ -164,7 +176,13 @@ async function loadDocuments() {
 document.getElementById('uploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    // Валідація файлу - перевіряємо через FormData
     const formData = new FormData(this);
+    if (!formData.has('file') || !formData.get('file').name) {
+        alert('Будь ласка, виберіть файл для завантаження');
+        return;
+    }
+    
     const messageDiv = document.getElementById('message');
     
     try {
@@ -178,14 +196,20 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
             document.getElementById('fileUploadArea').innerHTML = `
                 <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                 <h5>Перетягніть файл сюди або натисніть для вибору</h5>
-                <input type="file" class="form-control" id="fileInput" name="file" style="display: none;" required>
+                <input type="file" class="form-control" id="fileInput" name="file" style="display: none;">
                 <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" required>
             `;
             setupFileUpload();
             loadDocuments();
+            alert('Файл успішно завантажено!');
         } else {
-            const error = await response.json();
-            alert('Помилка завантаження: ' + (error.detail || 'Невідома помилка'));
+            // Спробуємо отримати JSON помилку, але якщо не вдається - показуємо загальну помилку
+            try {
+                const error = await response.json();
+                alert('Помилка завантаження: ' + (error.detail || error.message || 'Невідома помилка'));
+            } catch (parseError) {
+                alert('Помилка завантаження: ' + response.statusText + ' (код: ' + response.status + ')');
+            }
         }
     } catch (error) {
         alert('Помилка з\'єднання з сервером');

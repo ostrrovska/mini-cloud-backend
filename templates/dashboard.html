@@ -70,34 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Налаштування завантаження файлів
 function setupFileUpload() {
-    const fileUploadArea = document.getElementById('fileUploadArea');
-    const fileInput = document.getElementById('fileInput');
-    
-    fileUploadArea.addEventListener('click', () => fileInput.click());
-    
-    fileUploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.add('dragover');
-    });
-    
-    fileUploadArea.addEventListener('dragleave', () => {
-        fileUploadArea.classList.remove('dragover');
-    });
-    
-    fileUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            // Створюємо DataTransfer для правильної передачі файлу
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(files[0]);
-            fileInput.files = dataTransfer.files;
-            updateFileDisplay();
-        }
-    });
-    
-    fileInput.addEventListener('change', updateFileDisplay);
+    setupFileUploadHandlers();
 }
 
 function updateFileDisplay() {
@@ -108,9 +81,15 @@ function updateFileDisplay() {
         const fileName = fileInput.files[0].name;
         const file = fileInput.files[0]; // Зберігаємо файл
         
+        // Визначаємо тип файлу
+        const fileType = getFileType(file);
+        const fileIcon = getFileIcon(fileType);
+        
         fileUploadArea.innerHTML = `
-            <i class="fas fa-file fa-3x text-primary mb-3"></i>
-            <h5>${fileName}</h5>
+            <div class="file-preview-container">
+                ${getFilePreview(file, fileType)}
+            </div>
+            <h5 class="mt-3">${fileName}</h5>
             <input type="file" class="form-control" id="fileInput" name="file" style="display: none;">
             <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" value="${fileName}" required>
         `;
@@ -121,8 +100,143 @@ function updateFileDisplay() {
         dataTransfer.items.add(file);
         newFileInput.files = dataTransfer.files;
         
-        setupFileUpload(); // Перевстановити обробники
+        // Додаємо обробник тільки для нового input
+        newFileInput.addEventListener('change', updateFileDisplay);
+        
+        // Відновлюємо обробники для drag & drop на новій області
+        setupFileUploadHandlers();
     }
+}
+
+// Функція для визначення типу файлу
+function getFileType(file) {
+    const type = file.type.toLowerCase();
+    if (type.startsWith('image/')) return 'image';
+    if (type.startsWith('video/')) return 'video';
+    if (type.startsWith('audio/')) return 'audio';
+    if (type.includes('pdf')) return 'pdf';
+    if (type.includes('word') || type.includes('document')) return 'document';
+    if (type.includes('excel') || type.includes('spreadsheet')) return 'spreadsheet';
+    if (type.includes('powerpoint') || type.includes('presentation')) return 'presentation';
+    if (type.includes('text/')) return 'text';
+    if (type.includes('zip') || type.includes('rar') || type.includes('7z')) return 'archive';
+    return 'file';
+}
+
+// Функція для отримання іконки файлу
+function getFileIcon(fileType) {
+    const icons = {
+        'image': 'fas fa-image',
+        'video': 'fas fa-video',
+        'audio': 'fas fa-music',
+        'pdf': 'fas fa-file-pdf',
+        'document': 'fas fa-file-word',
+        'spreadsheet': 'fas fa-file-excel',
+        'presentation': 'fas fa-file-powerpoint',
+        'text': 'fas fa-file-alt',
+        'archive': 'fas fa-file-archive',
+        'file': 'fas fa-file'
+    };
+    return icons[fileType] || icons['file'];
+}
+
+// Функція для створення preview файлу
+function getFilePreview(file, fileType) {
+    if (fileType === 'image') {
+        return `
+            <div class="image-preview">
+                <img src="${URL.createObjectURL(file)}" alt="Preview" class="preview-image">
+                <div class="preview-overlay">
+                    <i class="fas fa-image fa-2x"></i>
+                </div>
+            </div>
+        `;
+    } else {
+        const icon = getFileIcon(fileType);
+        return `
+            <div class="file-icon-preview">
+                <i class="${icon} fa-4x text-primary"></i>
+            </div>
+        `;
+    }
+}
+
+// Функція для отримання іконки файлу за розширенням
+function getFileIconByExtension(extension) {
+    const iconMap = {
+        'jpg': 'fas fa-image',
+        'jpeg': 'fas fa-image',
+        'png': 'fas fa-image',
+        'gif': 'fas fa-image',
+        'bmp': 'fas fa-image',
+        'webp': 'fas fa-image',
+        'svg': 'fas fa-image',
+        'mp4': 'fas fa-video',
+        'avi': 'fas fa-video',
+        'mov': 'fas fa-video',
+        'wmv': 'fas fa-video',
+        'flv': 'fas fa-video',
+        'webm': 'fas fa-video',
+        'mp3': 'fas fa-music',
+        'wav': 'fas fa-music',
+        'flac': 'fas fa-music',
+        'aac': 'fas fa-music',
+        'pdf': 'fas fa-file-pdf',
+        'doc': 'fas fa-file-word',
+        'docx': 'fas fa-file-word',
+        'xls': 'fas fa-file-excel',
+        'xlsx': 'fas fa-file-excel',
+        'ppt': 'fas fa-file-powerpoint',
+        'pptx': 'fas fa-file-powerpoint',
+        'txt': 'fas fa-file-alt',
+        'rtf': 'fas fa-file-alt',
+        'zip': 'fas fa-file-archive',
+        'rar': 'fas fa-file-archive',
+        '7z': 'fas fa-file-archive',
+        'tar': 'fas fa-file-archive',
+        'gz': 'fas fa-file-archive'
+    };
+    return iconMap[extension] || 'fas fa-file';
+}
+
+// Окрема функція для налаштування обробників drag & drop
+function setupFileUploadHandlers() {
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    // Видаляємо старі обробники
+    const newFileUploadArea = fileUploadArea.cloneNode(true);
+    fileUploadArea.parentNode.replaceChild(newFileUploadArea, fileUploadArea);
+    
+    // Отримуємо нові елементи
+    const newFileInput = document.getElementById('fileInput');
+    
+    // Додаємо обробники для нової області
+    newFileUploadArea.addEventListener('click', () => newFileInput.click());
+    
+    newFileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        newFileUploadArea.classList.add('dragover');
+    });
+    
+    newFileUploadArea.addEventListener('dragleave', () => {
+        newFileUploadArea.classList.remove('dragover');
+    });
+    
+    newFileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        newFileUploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            // Створюємо DataTransfer для правильної передачі файлу
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(files[0]);
+            newFileInput.files = dataTransfer.files;
+            updateFileDisplay();
+        }
+    });
+    
+    newFileInput.addEventListener('change', updateFileDisplay);
 }
 
 // Завантаження списку документів
@@ -141,12 +255,27 @@ async function loadDocuments() {
         let html = '<div class="row">';
         documents.forEach(doc => {
             const uploadDate = new Date(doc.uploaded_at).toLocaleDateString('uk-UA');
+            const fileExtension = doc.file.split('.').pop().toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension);
+            
             html += `
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card h-100">
+                        ${isImage ? `
+                            <div class="card-img-top" style="height: 150px; overflow: hidden; position: relative;">
+                                <img src="${doc.file}" alt="${doc.title}" class="w-100 h-100" style="object-fit: cover; opacity: 0.8;">
+                                <div class="preview-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(102, 126, 234, 0.8); color: white; padding: 8px 12px; border-radius: 50%;">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 150px; background: linear-gradient(135deg, #f8f9ff 0%, #e9ecef 100%);">
+                                <i class="${getFileIconByExtension(fileExtension)} fa-3x text-primary" style="opacity: 0.8;"></i>
+                            </div>
+                        `}
                         <div class="card-body">
                             <h6 class="card-title">
-                                <i class="fas fa-file"></i> ${doc.title}
+                                ${doc.title}
                             </h6>
                             <p class="card-text text-muted small">
                                 Завантажено: ${uploadDate}
@@ -199,6 +328,7 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
                 <input type="file" class="form-control" id="fileInput" name="file" style="display: none;">
                 <input type="text" class="form-control mt-3" id="fileTitle" name="title" placeholder="Назва файлу" required>
             `;
+            // Перевстановлюємо обробники після скидання форми
             setupFileUpload();
             loadDocuments();
             alert('Файл успішно завантажено!');
